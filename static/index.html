@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tortoise Matrix · 慢友好聊天客户端演示</title>
+<style>
+  :root {
+    --bg: #f7f7f5;
+    --surface: #ffffff;
+    --border: #e3e1da;
+    --text: #2c2c2a;
+    --text-2: #6f6e69;
+    --text-3: #a9a7a0;
+    --blue: #185fa5;
+    --blue-bg: #e6f1fb;
+    --blue-border: #85b7eb;
+    --red: #a32d2d;
+    --red-bg: #fcebeb;
+    --red-border: #f09595;
+    --green: #3b6d11;
+    --green-bg: #eaf3de;
+    --green-border: #97c459;
+    --amber: #854f0b;
+    --amber-bg: #faeeda;
+    --radius: 10px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.6;
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 24px 20px 60px; }
+
+  header h1 { font-size: 20px; font-weight: 600; }
+  header p.sub { color: var(--text-2); margin-top: 4px; }
+
+  .controls {
+    display: flex; flex-wrap: wrap; gap: 18px; align-items: center;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 14px 18px; margin: 18px 0 22px;
+  }
+  .ctrl { display: flex; align-items: center; gap: 10px; }
+  .ctrl label { color: var(--text-2); white-space: nowrap; }
+  .ctrl output { font-variant-numeric: tabular-nums; color: var(--text); min-width: 52px; }
+  input[type=range] { accent-color: var(--blue); width: 150px; }
+  .badge {
+    margin-left: auto; padding: 4px 14px; border-radius: 999px;
+    font-size: 13px; font-weight: 500; border: 1px solid var(--border);
+    background: var(--bg); color: var(--text-2);
+  }
+  .badge.live { background: var(--green-bg); color: var(--green); border-color: var(--green-border); }
+  .badge.syncing { background: var(--amber-bg); color: var(--amber); border-color: #fac775; }
+  .badge.lagging { background: var(--red-bg); color: var(--red); border-color: var(--red-border); }
+
+  .panels { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  @media (max-width: 900px) { .panels { grid-template-columns: 1fr; } }
+
+  .panel {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); overflow: hidden; display: flex; flex-direction: column;
+  }
+  .panel-head { padding: 14px 16px 10px; border-bottom: 1px solid var(--border); }
+  .panel-head h2 { font-size: 15px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  .panel-head .tag {
+    font-size: 11px; font-weight: 500; padding: 2px 8px; border-radius: 4px;
+  }
+  .legacy .tag { background: var(--red-bg); color: var(--red); }
+  .tortoise .tag { background: var(--green-bg); color: var(--green); }
+  .panel-head p { font-size: 12px; color: var(--text-2); margin-top: 4px; }
+
+  .room-bar { display: flex; gap: 8px; padding: 10px 16px 0; }
+  .room-btn {
+    border: 1px solid var(--border); background: var(--bg); color: var(--text-2);
+    font-size: 12px; padding: 4px 12px; border-radius: 999px; cursor: pointer;
+  }
+  .room-btn.active { background: var(--blue-bg); color: var(--blue); border-color: var(--blue-border); }
+
+  .messages {
+    height: 320px; overflow-y: auto; padding: 14px 16px;
+    display: flex; flex-direction: column; gap: 10px; background: #fbfbf9;
+  }
+  .msg { display: flex; flex-direction: column; max-width: 78%; }
+  .msg.mine { align-self: flex-end; align-items: flex-end; }
+  .msg.other { align-self: flex-start; }
+  .bubble {
+    padding: 8px 12px; border-radius: 12px; font-size: 13.5px; word-break: break-word;
+  }
+  .msg.mine .bubble { background: var(--blue-bg); border: 1px solid var(--blue-border); border-bottom-right-radius: 4px; }
+  .msg.other .bubble { background: var(--surface); border: 1px solid var(--border); border-bottom-left-radius: 4px; }
+  .msg .meta { font-size: 11px; color: var(--text-3); margin-top: 3px; display: flex; align-items: center; gap: 5px; }
+  .msg.deleted .bubble { color: var(--text-3); font-style: italic; background: var(--bg); border-style: dashed; }
+  .msg.edited .bubble::after { content: "（已编辑）"; color: var(--text-3); font-size: 11px; margin-left: 4px; }
+  .status-icon { display: inline-flex; vertical-align: -2px; }
+  .status-icon.pending { color: var(--amber); }
+  .status-icon.sent { color: var(--green); }
+  .status-icon.failed { color: var(--red); }
+  .status-icon.rejected { color: var(--red); }
+
+  .timing {
+    display: flex; align-items: baseline; gap: 8px;
+    padding: 10px 16px; border-top: 1px solid var(--border); font-size: 13px; color: var(--text-2);
+  }
+  .timing .num { font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .legacy .timing .num { color: var(--red); }
+  .tortoise .timing .num { color: var(--blue); }
+  .timing .hint { font-size: 12px; color: var(--text-3); }
+
+  .composer { display: flex; gap: 8px; padding: 12px 16px 16px; }
+  .composer input {
+    flex: 1; border: 1px solid var(--border); border-radius: 8px;
+    padding: 9px 12px; font-size: 13.5px; background: var(--surface); color: var(--text);
+  }
+  .composer input:focus { outline: 2px solid var(--blue-border); border-color: var(--blue); }
+  .btn {
+    border: none; border-radius: 8px; padding: 9px 18px; font-size: 13.5px;
+    cursor: pointer; font-weight: 500; display: inline-flex; align-items: center; gap: 6px;
+  }
+  .btn-primary { background: var(--blue); color: #fff; }
+  .btn-primary:disabled { background: var(--text-3); cursor: not-allowed; }
+  .btn-ghost { background: var(--bg); color: var(--text-2); border: 1px solid var(--border); }
+
+  .spinner {
+    width: 14px; height: 14px; border: 2px solid rgba(255,255,255,.4);
+    border-top-color: #fff; border-radius: 50%; animation: spin .8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .metrics {
+    display: flex; flex-wrap: wrap; gap: 22px; margin-top: 20px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 14px 18px; font-size: 13px; color: var(--text-2);
+  }
+  .metrics b { color: var(--text); font-variant-numeric: tabular-nums; font-weight: 600; }
+
+  .explain { margin-top: 20px; color: var(--text-2); font-size: 13px; }
+  .explain li { margin: 6px 0 6px 18px; }
+  .explain code { background: var(--bg); border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; font-size: 12px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Tortoise Matrix · 慢友好聊天客户端</h1>
+    <p class="sub">两个客户端打的是同一台服务器。拖动下面的滑块让服务器变慢，看两边谁先卡。</p>
+  </header>
+
+  <div class="controls">
+    <div class="ctrl">
+      <label for="latency">服务端延迟</label>
+      <input type="range" id="latency" min="0.2" max="8" step="0.1" value="2.5">
+      <output id="latencyVal">2.5 s</output>
+    </div>
+    <div class="ctrl">
+      <label for="failure">丢包率</label>
+      <input type="range" id="failure" min="0" max="0.6" step="0.05" value="0">
+      <output id="failureVal">0 %</output>
+    </div>
+    <span class="badge" id="syncBadge">同步: 启动中</span>
+  </div>
+
+  <div class="panels">
+    <section class="panel legacy">
+      <div class="panel-head">
+        <h2>传统客户端 <span class="tag">阻塞式</span></h2>
+        <p>每个操作都干等服务器响应；对方的新消息不会自动出现，需要手动刷新。</p>
+      </div>
+      <div class="room-bar" id="legacyRooms"></div>
+      <div class="messages" id="legacyMessages"></div>
+      <div class="timing">
+        <span>上一次操作让界面卡住</span>
+        <span class="num" id="legacyTiming">—</span>
+        <span class="hint">（点击到看到结果的全部时间）</span>
+      </div>
+      <div class="composer">
+        <input id="legacyInput" placeholder="输入消息，发送时界面会冻住…" maxlength="2000">
+        <button class="btn btn-primary" id="legacySend">发送</button>
+        <button class="btn btn-ghost" id="legacyRefresh">刷新</button>
+      </div>
+    </section>
+
+    <section class="panel tortoise">
+      <div class="panel-head">
+        <h2>Tortoise <span class="tag">慢友好</span></h2>
+        <p>所有操作即时响应；消息先上屏（时钟图标），服务器确认后变对勾；新消息自动流入。</p>
+      </div>
+      <div class="room-bar" id="tortoiseRooms"></div>
+      <div class="messages" id="tortoiseMessages"></div>
+      <div class="timing">
+        <span>上一次操作界面响应</span>
+        <span class="num" id="tortoiseTiming">—</span>
+        <span class="hint">（点击到消息上屏）</span>
+      </div>
+      <div class="composer">
+        <input id="tortoiseInput" placeholder="输入消息，立刻上屏…" maxlength="2000">
+        <button class="btn btn-primary" id="tortoiseSend">发送</button>
+      </div>
+    </section>
+  </div>
+
+  <div class="metrics" id="metrics">
+    <span>队列深度 <b id="mDepth">0</b></span>
+    <span>进行中 <b id="mInFlight">0</b></span>
+    <span>已完成 <b id="mCompleted">0</b></span>
+    <span>重试次数 <b id="mRetried">0</b></span>
+    <span>后台丢弃 <b id="mDropped">0</b></span>
+    <span>待对账 <b id="mPending">0</b></span>
+  </div>
+
+  <ul class="explain">
+    <li>上半边的按钮点下去会<b>冻住整个界面</b>，直到服务器回应——这就是传统客户端的日常。</li>
+    <li>下半边的消息<b>毫秒级上屏</b>，网络快慢被隔离在后台；哪怕丢包率拉到 60%，也只是时钟图标多转一会儿。</li>
+    <li>右边面板的每条消息都有完整生命周期：<b>时钟（待确认）→ 对勾（已确认）</b>，失败会自动重试。</li>
+  </ul>
+</div>
+
+<script>
+const state = {
+  rooms: [],
+  room: null,
+  localUser: "@me:localhost",
+  legacyMsgs: new Map(),   // event_id -> msg
+  tortoiseMsgs: new Map(), // echo/event_id -> msg
+  ws: null,
+};
+
+const $ = (id) => document.getElementById(id);
+
+const ICONS = {
+  pending: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
+  sent: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M4 12.5l5 5L20 7"/></svg>',
+  failed: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 3l10 18H2z"/><path d="M12 10v5"/><circle cx="12" cy="17.6" r="0.4" fill="currentColor"/></svg>',
+  rejected: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M6 6l12 12M18 6L6 18"/></svg>',
+};
+
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, (c) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+  }[c]));
+}
+
+function fmtTime(ts) {
+  if (!ts) return "";
+  const d = new Date(ts * 1000);
+  return d.toTimeString().slice(0, 8);
+}
+
+function renderPanel(panel, msgs) {
+  const box = $(panel === "legacy" ? "legacyMessages" : "tortoiseMessages");
+  const items = [...msgs.values()].sort((a, b) => (a.ts || 0) - (b.ts || 0));
+  box.innerHTML = items.map((m) => {
+    const mine = m.sender === state.localUser;
+    const cls = ["msg", mine ? "mine" : "other"];
+    if (m.redacted) cls.push("deleted");
+    if (m.edited) cls.push("edited");
+    const body = m.redacted ? "此消息已删除" : esc(m.body);
+    const icon = mine && m.status && ICONS[m.status]
+      ? `<span class="status-icon ${m.status}">${ICONS[m.status]}</span>` : "";
+    const who = mine ? "我" : esc((m.sender || "").split(":")[0].replace("@", ""));
+    return `<div class="${cls.join(" ")}" data-id="${esc(m.local_echo_id || m.event_id || "")}">
+      <div class="bubble">${body}</div>
+      <div class="meta">${who} · ${fmtTime(m.ts)} ${icon}</div>
+    </div>`;
+  }).join("");
+  box.scrollTop = box.scrollHeight;
+}
+
+async function loadRooms() {
+  const cfg = await (await fetch("/api/demo/config")).json();
+  state.rooms = cfg.rooms;
+  state.localUser = cfg.local_user;
+  state.room = cfg.rooms[0].room_id;
+  for (const side of ["legacy", "tortoise"]) {
+    const bar = $(side === "legacy" ? "legacyRooms" : "tortoiseRooms");
+    bar.innerHTML = "";
+    cfg.rooms.forEach((r, i) => {
+      const b = document.createElement("button");
+      b.className = "room-btn" + (i === 0 ? " active" : "");
+      b.textContent = r.name;
+      b.onclick = () => {
+        bar.querySelectorAll(".room-btn").forEach((x) => x.classList.remove("active"));
+        b.classList.add("active");
+        state.room = r.room_id;
+        if (side === "legacy") legacyRefresh(); else tortoiseRefresh();
+      };
+      bar.appendChild(b);
+    });
+  }
+}
+
+// ------------------------------------------------------------- legacy client
+
+async function legacyRefresh() {
+  const t0 = performance.now();
+  const data = await (await fetch(`/api/demo/legacy/messages?room_id=${encodeURIComponent(state.room)}`)).json();
+  state.legacyMsgs.clear();
+  data.messages.forEach((m) => state.legacyMsgs.set(m.event_id || m.local_echo_id, m));
+  renderPanel("legacy", state.legacyMsgs);
+  $("legacyTiming").textContent = ((performance.now() - t0) / 1000).toFixed(2) + " s";
+}
+
+async function legacySend() {
+  const input = $("legacyInput");
+  const body = input.value.trim();
+  if (!body) return;
+  const btn = $("legacySend");
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>等待服务器';
+  const t0 = performance.now();
+  try {
+    await fetch("/api/demo/legacy/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ room_id: state.room, body }),
+    });
+    await legacyRefresh();
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "发送";
+    input.value = "";
+    $("legacyTiming").textContent = ((performance.now() - t0) / 1000).toFixed(2) + " s";
+  }
+}
+
+// ----------------------------------------------------------- tortoise client
+
+async function tortoiseRefresh() {
+  const data = await (await fetch(`/api/rooms/${encodeURIComponent(state.room)}/messages`)).json();
+  state.tortoiseMsgs.clear();
+  data.forEach((m) => state.tortoiseMsgs.set(m.local_echo_id || m.event_id, m));
+  renderPanel("tortoise", state.tortoiseMsgs);
+}
+
+async function tortoiseSend() {
+  const input = $("tortoiseInput");
+  const body = input.value.trim();
+  if (!body) return;
+  const t0 = performance.now();
+  const resp = await fetch(`/api/rooms/${encodeURIComponent(state.room)}/messages`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ body }),
+  });
+  const ev = await resp.json();
+  // 立即上屏：此时服务器还没确认（status=pending，时钟图标）
+  state.tortoiseMsgs.set(ev.local_echo_id, {
+    event_id: ev.event_id, local_echo_id: ev.local_echo_id, room_id: state.room,
+    sender: state.localUser, body: ev.body, ts: ev.ts, status: ev.status,
+    edited: false, redacted: false,
+  });
+  renderPanel("tortoise", state.tortoiseMsgs);
+  $("tortoiseTiming").textContent = (performance.now() - t0).toFixed(1) + " ms";
+  input.value = "";
+}
+
+// ------------------------------------------------------------- websocket
+
+function connectWs() {
+  const proto = location.protocol === "https:" ? "wss" : "ws";
+  state.ws = new WebSocket(`${proto}://${location.host}/ws`);
+  state.ws.onmessage = (raw) => {
+    const ev = JSON.parse(raw.data);
+    switch (ev.kind) {
+      case "MessageUpserted": {
+        const key = ev.local_echo_id || ev.event_id;
+        if (ev.room_id !== state.room) return;
+        const prev = state.tortoiseMsgs.get(key) || {};
+        state.tortoiseMsgs.set(key, {
+          event_id: ev.event_id, local_echo_id: ev.local_echo_id, room_id: ev.room_id,
+          sender: ev.sender, body: ev.body, ts: ev.ts || prev.ts || Date.now() / 1000,
+          status: ev.status, edited: ev.edited, redacted: ev.redacted,
+        });
+        renderPanel("tortoise", state.tortoiseMsgs);
+        updatePending();
+        break;
+      }
+      case "MessageAcknowledged": {
+        // 对账事件（本地 echo → 正式 event id）
+        break;
+      }
+      case "MessageFailed": {
+        console.warn("delivery retrying", ev);
+        break;
+      }
+      case "SyncStateChanged": {
+        const b = $("syncBadge");
+        const labels = { syncing: "同步中", live: "已同步", lagging: "服务器慢/不通，后台重试中", idle: "空闲", stopped: "已停止" };
+        b.textContent = "同步: " + (labels[ev.state] || ev.state);
+        b.className = "badge " + ev.state;
+        break;
+      }
+      case "QueueMetrics": {
+        $("mDepth").textContent = ev.depth;
+        $("mInFlight").textContent = ev.in_flight;
+        $("mCompleted").textContent = ev.completed;
+        $("mRetried").textContent = ev.retried;
+        $("mDropped").textContent = ev.dropped_background;
+        break;
+      }
+    }
+  };
+  state.ws.onclose = () => setTimeout(connectWs, 1500);
+}
+
+function updatePending() {
+  let n = 0;
+  state.tortoiseMsgs.forEach((m) => { if (m.status === "pending" || m.status === "failed") n++; });
+  $("mPending").textContent = n;
+}
+
+// ---------------------------------------------------------------- controls
+
+function bindControls() {
+  const lat = $("latency"), latVal = $("latencyVal");
+  lat.oninput = () => { latVal.textContent = Number(lat.value).toFixed(1) + " s"; };
+  lat.onchange = async () => {
+    await fetch("/api/demo/latency", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ latency: Number(lat.value), jitter: 1.0, failure_rate: Number($("failure").value) }),
+    });
+  };
+  const fail = $("failure"), failVal = $("failureVal");
+  fail.oninput = () => { failVal.textContent = Math.round(fail.value * 100) + " %"; };
+  fail.onchange = async () => {
+    await fetch("/api/demo/latency", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ latency: Number(lat.value), jitter: 1.0, failure_rate: Number(fail.value) }),
+    });
+  };
+  $("legacySend").onclick = legacySend;
+  $("legacyRefresh").onclick = legacyRefresh;
+  $("tortoiseSend").onclick = tortoiseSend;
+  $("legacyInput").onkeydown = (e) => { if (e.key === "Enter") legacySend(); };
+  $("tortoiseInput").onkeydown = (e) => { if (e.key === "Enter") tortoiseSend(); };
+}
+
+// -------------------------------------------------------------------- boot
+
+(async function boot() {
+  bindControls();
+  await loadRooms();
+  connectWs();
+  await Promise.all([legacyRefresh(), tortoiseRefresh()]);
+})();
+</script>
+</body>
+</html>
