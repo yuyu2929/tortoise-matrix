@@ -73,7 +73,7 @@ $ pytest tests/ -q
 - 运行环境：托管 Python 3.13.14（`~/.workbuddy/binaries/python/envs/default`），pytest 8 + pytest-asyncio（auto 模式）。
 - 全套约 65 秒——耗时主要来自 `test_slow_server.py` 的 2 秒延迟用例（设计使然，非卡顿）。
 - 唯一 warning：FastAPI TestClient 提示 httpx/starlette 弃用警告（上游库事项，不影响功能）。
-- GitHub CI：提交 `27f3a555`（首发）四版本矩阵 **success**；本轮修复提交 `d3217c7` 已触发新 CI（见下）。
+- GitHub CI：首发提交 `27f3a555` 四版本矩阵 **success**；本轮修复 `d3217c7` 与验收报告更新 `0cd30de` 均已触发 CI，其中最新提交 `0cd30de` 已回 **success**（`d3217c7` 运行中，代码与本地全绿一致）。
 
 ---
 
@@ -109,7 +109,7 @@ INFO:     Uvicorn running on http://127.0.0.1:8765
 1. **`examples/smoke.py` 硬编码旧路径**（真 bug）：第 6 行 `sys.path.insert(0, "D:/有用/tortoise-matrix")` 是项目迁移前的旧路径，直接运行示例必报 `ModuleNotFoundError`。已改为与 `quickstart.py` 一致的 `parents[1]` 相对定位，修复后实测全部通过。
 2. **README 测试计数过期**：`test_outbox.py` 加入后共 63 个用例，README 仍写 62。已更正。
 
-两处修复已提交 `d3217c7` 并推送 GitHub（`27f3a55..d3217c7 main -> main`），CI 自动触发。
+两处修复已提交 `d3217c7` 并推送 GitHub（`27f3a55..d3217c7 main -> main`）；随后验收报告更新提交 `0cd30de` 亦已推送（`d3217c7..0cd30de`）。两者 CI 均已触发，最新提交 CI 结果 **success**。
 
 ---
 
