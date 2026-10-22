@@ -138,7 +138,7 @@ Rationale and pricing: [COMMERCIAL.md](./COMMERCIAL.md). Enterprise features are
 pytest tests/ -q
 ```
 
-62 tests, including the headline suite `tests/test_slow_server.py`: with a 2-second-latency, packet-losing server, sends stay sub-100 ms, reads stay sub-millisecond, retries eventually land, and permanent rejections are surfaced honestly.
+63 tests, including the headline suite `tests/test_slow_server.py`: with a 2-second-latency, packet-losing server, sends stay sub-100 ms, reads stay sub-millisecond, retries eventually land, and permanent rejections are surfaced honestly.
 
 ## Status
 
