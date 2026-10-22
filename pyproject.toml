@@ -33,6 +33,7 @@ dependencies = [
 dev = [
     "pytest>=8.0",
     "pytest-asyncio>=0.23",
+    "pytest-timeout>=2.3",
 ]
 
 [project.urls]
@@ -50,3 +51,6 @@ include = ["tortoise*"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+
+# 单个测试超过 180 秒视为挂死并转储堆栈（防 CI runner 卡死整个 job）
+timeout = "180"
